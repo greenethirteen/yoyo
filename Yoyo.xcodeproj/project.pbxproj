@@ -14,13 +14,6 @@
 		2C0F09C730580A440034639B /* PracticeSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09C630580A440034639B /* PracticeSetupView.swift */; };
 		2C0F09C930580A690034639B /* PracticeExamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09C830580A690034639B /* PracticeExamView.swift */; };
 		2C0F09CB30580AC10034639B /* PracticeResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09CA30580AC10034639B /* PracticeResultView.swift */; };
-		2C0F09CD305817770034639B /* GameStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09CC305817770034639B /* GameStore.swift */; };
-		2C0F09CF305817A10034639B /* CelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09CE305817A10034639B /* CelebrationView.swift */; };
-		2C0F09D1305817AA0034639B /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09D0305817A90034639B /* MainTabView.swift */; };
-		2C0F09D33058180B0034639B /* LeaderboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09D23058180B0034639B /* LeaderboardView.swift */; };
-		2C0F09D5305818320034639B /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09D4305818320034639B /* ProfileView.swift */; };
-		2C0F09D7305818930034639B /* BattleSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09D6305818930034639B /* BattleSetupView.swift */; };
-		2C0F09D9305818D20034639B /* BattleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0F09D8305818D20034639B /* BattleView.swift */; };
 		2CFE51303050082800A3269D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2CFE512F3050082800A3269D /* Assets.xcassets */; };
 		A00000000000000000000001 /* YoyoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* YoyoApp.swift */; };
 		A00000000000000000000002 /* StudyPaperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000002 /* StudyPaperView.swift */; };
@@ -36,13 +29,6 @@
 		2C0F09C630580A440034639B /* PracticeSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeSetupView.swift; sourceTree = "<group>"; };
 		2C0F09C830580A690034639B /* PracticeExamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeExamView.swift; sourceTree = "<group>"; };
 		2C0F09CA30580AC10034639B /* PracticeResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeResultView.swift; sourceTree = "<group>"; };
-		2C0F09CC305817770034639B /* GameStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStore.swift; sourceTree = "<group>"; };
-		2C0F09CE305817A10034639B /* CelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationView.swift; sourceTree = "<group>"; };
-		2C0F09D0305817A90034639B /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
-		2C0F09D23058180B0034639B /* LeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardView.swift; sourceTree = "<group>"; };
-		2C0F09D4305818320034639B /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		2C0F09D6305818930034639B /* BattleSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleSetupView.swift; sourceTree = "<group>"; };
-		2C0F09D8305818D20034639B /* BattleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleView.swift; sourceTree = "<group>"; };
 		2CFE512F3050082800A3269D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B00000000000000000000001 /* YoyoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoyoApp.swift; sourceTree = "<group>"; };
 		B00000000000000000000002 /* StudyPaperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyPaperView.swift; sourceTree = "<group>"; };
@@ -87,13 +73,6 @@
 				2C0F09C630580A440034639B /* PracticeSetupView.swift */,
 				2C0F09C830580A690034639B /* PracticeExamView.swift */,
 				2C0F09CA30580AC10034639B /* PracticeResultView.swift */,
-				2C0F09CC305817770034639B /* GameStore.swift */,
-				2C0F09CE305817A10034639B /* CelebrationView.swift */,
-				2C0F09D0305817A90034639B /* MainTabView.swift */,
-				2C0F09D23058180B0034639B /* LeaderboardView.swift */,
-				2C0F09D4305818320034639B /* ProfileView.swift */,
-				2C0F09D6305818930034639B /* BattleSetupView.swift */,
-				2C0F09D8305818D20034639B /* BattleView.swift */,
 			);
 			path = Yoyo;
 			sourceTree = "<group>";
@@ -176,22 +155,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000001 /* YoyoApp.swift in Sources */,
-				2C0F09CD305817770034639B /* GameStore.swift in Sources */,
 				2C0F09C730580A440034639B /* PracticeSetupView.swift in Sources */,
-				2C0F09D7305818930034639B /* BattleSetupView.swift in Sources */,
 				A00000000000000000000002 /* StudyPaperView.swift in Sources */,
 				2C0F09C1305809E90034639B /* RootView.swift in Sources */,
 				2C0F09C930580A690034639B /* PracticeExamView.swift in Sources */,
-				2C0F09CF305817A10034639B /* CelebrationView.swift in Sources */,
 				2C0F09CB30580AC10034639B /* PracticeResultView.swift in Sources */,
-				2C0F09D5305818320034639B /* ProfileView.swift in Sources */,
 				A00000000000000000000003 /* Models.swift in Sources */,
 				A00000000000000000000004 /* SourcePaperView.swift in Sources */,
-				2C0F09D33058180B0034639B /* LeaderboardView.swift in Sources */,
 				2C0F09C530580A080034639B /* HomeView.swift in Sources */,
-				2C0F09D1305817AA0034639B /* MainTabView.swift in Sources */,
 				2C0F09BF305809E10034639B /* GradingService.swift in Sources */,
-				2C0F09D9305818D20034639B /* BattleView.swift in Sources */,
 				2C0F09C3305809F10034639B /* SplashView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

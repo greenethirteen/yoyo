@@ -47,26 +47,57 @@ private struct ResultBar: View {
     }
 }
 
+/// A simple results header: a badge in a gradient disc, a headline and score line.
+private struct ResultHeader: View {
+    let title: String
+    let subtitle: String
+    var symbol: String = "checkmark.seal.fill"
+    var tint: Color = Brand.coral
+
+    var body: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(colors: [tint, tint.opacity(0.65)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 96, height: 96)
+                Image(systemName: symbol)
+                    .font(.system(size: 42, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            .shadow(color: tint.opacity(0.4), radius: 14, y: 8)
+
+            Text(title)
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(Brand.ink)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+
+            Text(subtitle)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(Brand.ink.opacity(0.6))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 20)
+        .background(
+            LinearGradient(colors: [tint.opacity(0.16), .white], startPoint: .top, endPoint: .bottom),
+            in: RoundedRectangle(cornerRadius: 24)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 10, y: 3)
+    }
+}
+
 // MARK: - Multiple choice results
 
 private struct MCQResultView: View {
-    @Environment(GameStore.self) private var game
-
     let paper: Paper
     let answers: [Int: Int]
     let onDone: () -> Void
 
-    @State private var earned = 0
-    @State private var recorded = false
-
     private var score: Int {
         paper.questions.filter { answers[$0.id] == $0.correctIndex }.count
-    }
-    private var wrong: Int {
-        paper.questions.filter { answers[$0.id] != nil && answers[$0.id] != $0.correctIndex }.count
-    }
-    private var skipped: Int {
-        paper.questions.filter { answers[$0.id] == nil }.count
     }
 
     var body: some View {
@@ -74,10 +105,9 @@ private struct MCQResultView: View {
             ResultBar(title: "Results", onDone: onDone)
             ScrollView {
                 VStack(spacing: 16) {
-                    CelebrationView(
+                    ResultHeader(
                         title: title,
-                        subtitle: "You scored \(score) / \(paper.questions.count)",
-                        pointsEarned: earned
+                        subtitle: "You scored \(score) / \(paper.questions.count)"
                     )
                     ForEach(paper.questions) { question in
                         MCQResultRow(question: question, chosen: answers[question.id])
@@ -89,12 +119,6 @@ private struct MCQResultView: View {
                 .frame(maxWidth: .infinity)
             }
             .background(Color(red: 0.955, green: 0.95, blue: 0.94))
-        }
-        .task {
-            guard !recorded else { return }
-            recorded = true
-            earned = game.recordPractice(subject: paper.subject,
-                                         correct: score, wrong: wrong, skipped: skipped)
         }
     }
 
@@ -158,8 +182,6 @@ private enum WrittenGradeState {
 }
 
 private struct WrittenResultView: View {
-    @Environment(GameStore.self) private var game
-
     let paper: WrittenPaper
     let answers: [Int: String]
     let onDone: () -> Void
@@ -167,7 +189,6 @@ private struct WrittenResultView: View {
     @State private var grades: [Int: WrittenGradeState] = [:]
     @State private var unavailableMessage: String?
     @State private var isGrading = true
-    @State private var earned = 0
 
     private var awarded: Int {
         paper.questions.reduce(0) { sum, q in
@@ -208,10 +229,9 @@ private struct WrittenResultView: View {
         } else if isGrading {
             gradingHeader
         } else {
-            CelebrationView(
+            ResultHeader(
                 title: awarded >= paper.totalMarks ? "Full marks!" : "Paper marked!",
-                subtitle: "The AI examiner scored you \(awarded) / \(paper.totalMarks)",
-                pointsEarned: earned
+                subtitle: "The AI examiner scored you \(awarded) / \(paper.totalMarks)"
             )
         }
     }
@@ -248,10 +268,6 @@ private struct WrittenResultView: View {
         if let message = GradingEngine.unavailableMessage {
             unavailableMessage = message
             isGrading = false
-            // Award completion points even when self-marking.
-            earned = game.recordPractice(subject: paper.subject,
-                                         correct: 0, wrong: 0, skipped: 0,
-                                         writtenMarks: 0, writtenTotal: paper.totalMarks)
             return
         }
         for question in paper.questions {
@@ -269,9 +285,6 @@ private struct WrittenResultView: View {
             }
         }
         isGrading = false
-        earned = game.recordPractice(subject: paper.subject,
-                                     correct: 0, wrong: 0, skipped: 0,
-                                     writtenMarks: awarded, writtenTotal: paper.totalMarks)
     }
 }
 

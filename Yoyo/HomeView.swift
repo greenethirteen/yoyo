@@ -1,14 +1,11 @@
 import SwiftUI
 
-/// Minimalist landing page: player progress strip plus the three ways to play.
+/// Minimalist landing page: the ways to study.
 struct HomeView: View {
-    @Environment(GameStore.self) private var game
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 header
-                playerStrip
                 cards
                 subjectsStrip
             }
@@ -43,43 +40,6 @@ struct HomeView: View {
         }
     }
 
-    private var playerStrip: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(colors: [Brand.coral, Brand.peach],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                Image(systemName: "face.smiling.inverse")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 56, height: 56)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Level \(game.level)")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(Brand.ink)
-                LevelBar(progress: game.levelProgress)
-                Text("\(game.pointsIntoLevel) / \(Points.perLevel) to next level")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(Brand.ink.opacity(0.5))
-            }
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 8) {
-                StatPill(icon: "bolt.fill", text: "\(game.points)",
-                         color: Color(red: 0.85, green: 0.6, blue: 0.0))
-                StatPill(icon: "flame.fill", text: "\(game.stats.streakDays)",
-                         color: Brand.coral)
-            }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity)
-        .background(.white, in: RoundedRectangle(cornerRadius: 22))
-        .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
-    }
-
     private var cards: some View {
         VStack(spacing: 16) {
             NavigationLink {
@@ -99,21 +59,9 @@ struct HomeView: View {
             } label: {
                 HomeCard(
                     title: "Practice exam",
-                    subtitle: "Sit a timed paper and earn points — multiple choice and written answers.",
+                    subtitle: "Sit a timed paper — multiple choice and written answers.",
                     systemImage: "timer",
                     tint: Brand.mint
-                )
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                BattleSetupView()
-            } label: {
-                HomeCard(
-                    title: "1v1 Battle",
-                    subtitle: "Go head-to-head against an opponent in a fast quiz duel.",
-                    systemImage: "bolt.horizontal.fill",
-                    tint: Brand.peach
                 )
             }
             .buttonStyle(.plain)
@@ -133,42 +81,6 @@ struct HomeView: View {
                             color: Color(red: 0.30, green: 0.63, blue: 0.94))
             }
         }
-    }
-}
-
-/// A slim capped progress bar for the level indicator.
-private struct LevelBar: View {
-    let progress: Double
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Brand.ink.opacity(0.08))
-                Capsule()
-                    .fill(LinearGradient(colors: [Brand.coral, Brand.peach],
-                                         startPoint: .leading, endPoint: .trailing))
-                    .frame(width: max(6, geo.size.width * min(max(progress, 0), 1)))
-            }
-        }
-        .frame(height: 8)
-    }
-}
-
-private struct StatPill: View {
-    let icon: String
-    let text: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-            Text(text)
-        }
-        .font(.system(size: 14, weight: .bold, design: .rounded))
-        .foregroundStyle(color)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(color.opacity(0.14), in: Capsule())
     }
 }
 
@@ -261,5 +173,4 @@ private struct SubjectChip: View {
 
 #Preview {
     NavigationStack { HomeView() }
-        .environment(GameStore())
 }
