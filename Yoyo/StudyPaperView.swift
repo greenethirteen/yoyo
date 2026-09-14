@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct StudyPaperView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedPaper: Paper = DemoPaper.papers[0]
     @State private var selectedQuestion: BiologyQuestion?
     @State private var answers: [Int: Int] = [:]
@@ -89,17 +88,6 @@ struct StudyPaperView: View {
 
     private var topBar: some View {
         HStack(spacing: 16) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(Brand.ink)
-                    .frame(width: 38, height: 38)
-                    .background(Brand.coral.opacity(0.12), in: Circle())
-            }
-            .buttonStyle(.plain)
-
             HStack(spacing: 11) {
                 YoyoLogo(size: 40)
                 Text("Yoyo")
