@@ -427,12 +427,12 @@ private struct LessonSidebar: View {
     let onClose: () -> Void
 
     /// Remembered across questions and launches.
-    @AppStorage("lessonLevel") private var levelRaw: Int = LessonLevel.standard.rawValue
+    @AppStorage("lessonLevel") private var levelRaw: Int = LessonLevel.simple.rawValue
     @State private var speech = SpeechController()
     @State private var isSpeaking = false
 
     private var style: TopicStyle { TopicStyle.forTopic(question.topic) }
-    private var level: LessonLevel { LessonLevel(rawValue: levelRaw) ?? .standard }
+    private var level: LessonLevel { LessonLevel(rawValue: levelRaw) ?? .detailed }
 
     // The saved notes baked into each question.
     private var lessonTitle: String { question.lessonTitle }
@@ -486,9 +486,12 @@ private struct LessonSidebar: View {
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .tracking(1.2)
                 .foregroundStyle(Brand.ink.opacity(0.45))
-            Picker("Explanation level", selection: $levelRaw) {
+            Picker("Explanation level", selection: Binding(
+                get: { level },
+                set: { levelRaw = $0.rawValue }
+            )) {
                 ForEach(LessonLevel.allCases) { lvl in
-                    Text(lvl.label).tag(lvl.rawValue)
+                    Text(lvl.label).tag(lvl)
                 }
             }
             .pickerStyle(.segmented)
@@ -722,6 +725,9 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
     /// Called when speaking starts or stops, so a view can update its icon.
     var onChange: ((Bool) -> Void)?
 
+    /// Chosen once: the most natural-sounding English voice installed.
+    private lazy var voice: AVSpeechSynthesisVoice? = Self.preferredVoice()
+
     override init() {
         super.init()
         synthesizer.delegate = self
@@ -740,11 +746,37 @@ final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
         try? AVAudioSession.sharedInstance().setActive(true)
 
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-GB")
-        utterance.rate = 0.44          // a little slower, easier to follow
-        utterance.pitchMultiplier = 1.05
+        utterance.voice = voice
+        utterance.rate = 0.46          // a little slower, easier to follow
         synthesizer.speak(utterance)
         onChange?(true)
+    }
+
+    /// Picks the best-quality English voice available on the device, preferring
+    /// downloaded premium/enhanced voices over the robotic compact default.
+    private static func preferredVoice() -> AVSpeechSynthesisVoice? {
+        let english = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en") }
+
+        func rank(_ v: AVSpeechSynthesisVoice) -> Int {
+            var r = 0
+            switch v.quality {
+            case .premium: r += 300
+            case .enhanced: r += 200
+            default: r += 0
+            }
+            switch v.language {
+            case "en-GB": r += 30
+            case "en-AU", "en-IE": r += 18
+            case "en-US": r += 15
+            default: r += 0
+            }
+            // Skip the old novelty / eloquence voices, which sound robotic.
+            let name = v.name.lowercased()
+            if name.contains("eloquence") || name.contains("novelty") { r -= 500 }
+            return r
+        }
+
+        return english.max { rank($0) < rank($1) }
     }
 
     func stop() {
