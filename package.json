@@ -1,0 +1,1 @@
+{"name":"yoyo-web","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node server/index.js"},"dependencies":{"dotenv":"^17.4.2","express":"^4.19.2","openai":"^4.67.0"}}
