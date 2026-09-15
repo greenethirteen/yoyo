@@ -1,11 +1,12 @@
 import SwiftUI
 
 struct StudyPaperView: View {
+    @State private var selectedSubject: String = DemoPaper.papers[0].subject
     @State private var selectedPaper: Paper = DemoPaper.papers[0]
     @State private var selectedQuestion: BiologyQuestion?
     @State private var answers: [Int: Int] = [:]
     @State private var checked: Set<Int> = []
-    @State private var showingSource = false
+    @State private var showingExam = false
 
     private var score: Int {
         selectedPaper.questions.filter { q in
@@ -47,8 +48,8 @@ struct StudyPaperView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: selectedQuestion)
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showingSource) {
-            SourcePaperView()
+        .fullScreenCover(isPresented: $showingExam) {
+            ExamModeView(paper: selectedPaper)
         }
     }
 
@@ -95,6 +96,7 @@ struct StudyPaperView: View {
                     .foregroundStyle(Brand.ink)
             }
 
+            subjectPicker
             paperPicker
 
             Spacer()
@@ -110,11 +112,11 @@ struct StudyPaperView: View {
             .background(Brand.mint.opacity(0.35), in: Capsule())
 
             Button {
-                showingSource = true
+                showingExam = true
             } label: {
-                Label("Original paper", systemImage: "doc.text")
+                Label("Exam mode", systemImage: "timer")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
             .tint(Brand.coral)
         }
         .padding(.horizontal, 22)
@@ -123,37 +125,90 @@ struct StudyPaperView: View {
         .overlay(alignment: .bottom) { Divider() }
     }
 
-    private var paperPicker: some View {
+    /// Distinct subjects, in the order they first appear in the paper list.
+    private var subjects: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for paper in DemoPaper.papers where !seen.contains(paper.subject) {
+            seen.insert(paper.subject)
+            result.append(paper.subject)
+        }
+        return result
+    }
+
+    /// Papers belonging to the currently selected subject.
+    private var papersInSubject: [Paper] {
+        DemoPaper.papers.filter { $0.subject == selectedSubject }
+    }
+
+    private var subjectPicker: some View {
         Menu {
-            ForEach(DemoPaper.papers) { paper in
+            ForEach(subjects, id: \.self) { subject in
                 Button {
-                    selectPaper(paper)
+                    selectSubject(subject)
                 } label: {
-                    if paper.id == selectedPaper.id {
-                        Label("\(paper.subject) · \(paper.code) · \(paper.session)", systemImage: "checkmark")
+                    if subject == selectedSubject {
+                        Label(subject, systemImage: "checkmark")
                     } else {
-                        Text("\(paper.subject) · \(paper.code) · \(paper.session)")
+                        Text(subject)
                     }
                 }
             }
         } label: {
-            HStack(spacing: 7) {
-                Text("\(selectedPaper.subject) · \(selectedPaper.code)")
-                    .font(.subheadline.weight(.semibold))
-                Text(selectedPaper.session)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-            }
-            .foregroundStyle(Brand.ink)
-            .padding(.horizontal, 13)
-            .padding(.vertical, 8)
-            .background(Brand.coral.opacity(0.12), in: Capsule())
+            pickerLabel(icon: "books.vertical.fill", text: selectedSubject)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+    }
+
+    private var paperPicker: some View {
+        Menu {
+            ForEach(papersInSubject) { paper in
+                Button {
+                    selectPaper(paper)
+                } label: {
+                    if paper.id == selectedPaper.id {
+                        Label("\(paper.code) · \(paper.session)", systemImage: "checkmark")
+                    } else {
+                        Text("\(paper.code) · \(paper.session)")
+                    }
+                }
+            }
+        } label: {
+            pickerLabel(icon: "doc.text.fill", text: "\(selectedPaper.code) · \(selectedPaper.session)")
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+    }
+
+    private func pickerLabel(icon: String, text: String) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(Brand.coral)
+            Text(text)
+                .font(.subheadline.weight(.semibold))
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(Brand.ink)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 8)
+        .background(Brand.coral.opacity(0.12), in: Capsule())
+    }
+
+    private func selectSubject(_ subject: String) {
+        guard subject != selectedSubject else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedSubject = subject
+            if let first = DemoPaper.papers.first(where: { $0.subject == subject }) {
+                selectedPaper = first
+            }
+            selectedQuestion = nil
+            answers = [:]
+            checked = []
+        }
     }
 
     private func selectPaper(_ paper: Paper) {
@@ -605,5 +660,322 @@ private struct ResultCard: View {
         .padding(15)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background((correct ? Color.green : Color.red).opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+// MARK: - Exam mode
+
+/// A timed exam sitting for a multiple-choice paper. One question at a time,
+/// with an instant mark after each answer and a grade at the end.
+struct ExamModeView: View {
+    let paper: Paper
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var index = 0
+    @State private var selected: Int?
+    @State private var locked = false
+    @State private var score = 0
+    @State private var remaining: Int
+    @State private var finished = false
+    @State private var awardedFlash = false
+
+    init(paper: Paper) {
+        self.paper = paper
+        // Roughly one minute per question.
+        _remaining = State(initialValue: max(60, paper.questions.count * 60))
+    }
+
+    private var total: Int { paper.questions.count }
+    private var current: BiologyQuestion { paper.questions[index] }
+    private let letters = ["A", "B", "C", "D"]
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Brand.cream, Color(red: 0.955, green: 0.95, blue: 0.94)],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            if finished {
+                resultsView
+            } else {
+                examView
+            }
+        }
+        .task { await runTimer() }
+    }
+
+    // MARK: Timer
+
+    private func runTimer() async {
+        while remaining > 0 && !finished {
+            try? await Task.sleep(for: .seconds(1))
+            if finished { break }
+            remaining -= 1
+        }
+        if remaining <= 0 {
+            withAnimation(.easeInOut) { finished = true }
+        }
+    }
+
+    private var timeText: String {
+        String(format: "%d:%02d", remaining / 60, remaining % 60)
+    }
+
+    // MARK: Exam screen
+
+    private var examView: some View {
+        VStack(spacing: 0) {
+            examBar
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    Text("Question \(index + 1) of \(total)")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(Brand.ink.opacity(0.5))
+
+                    Text(current.stem)
+                        .font(.system(size: 22, design: .serif))
+                        .foregroundStyle(.black)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    VStack(spacing: 12) {
+                        ForEach(Array(current.options.enumerated()), id: \.offset) { i, option in
+                            optionRow(i, option)
+                        }
+                    }
+
+                    if locked {
+                        HStack {
+                            if awardedFlash {
+                                Label("+1 mark", systemImage: "checkmark.seal.fill")
+                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.green)
+                            } else {
+                                Label("No mark", systemImage: "xmark.seal.fill")
+                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.red)
+                            }
+                            Spacer()
+                            Button(action: next) {
+                                Text(index + 1 < total ? "Next" : "Finish")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 26)
+                                    .padding(.vertical, 13)
+                                    .background(Brand.coral, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .frame(maxWidth: 720)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 26)
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private var examBar: some View {
+        HStack(spacing: 16) {
+            Button {
+                dismiss()
+            } label: {
+                Label("Quit", systemImage: "xmark")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Brand.ink)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            HStack(spacing: 7) {
+                Image(systemName: "clock.fill")
+                Text(timeText).monospacedDigit()
+            }
+            .font(.system(size: 17, weight: .bold, design: .rounded))
+            .foregroundStyle(remaining <= 30 ? .red : Brand.ink)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background((remaining <= 30 ? Color.red : Brand.coral).opacity(0.12), in: Capsule())
+
+            Spacer()
+
+            HStack(spacing: 7) {
+                Image(systemName: "star.fill")
+                Text("\(score)")
+            }
+            .font(.system(size: 16, weight: .bold, design: .rounded))
+            .foregroundStyle(Color(red: 0.82, green: 0.6, blue: 0.0))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color(red: 1.0, green: 0.95, blue: 0.66), in: Capsule())
+        }
+        .padding(.horizontal, 22)
+        .frame(height: 66)
+        .background(.white)
+        .overlay(alignment: .bottom) {
+            ProgressView(value: Double(index) + (locked ? 1 : 0), total: Double(total))
+                .tint(Brand.coral)
+        }
+    }
+
+    private func optionRow(_ i: Int, _ option: String) -> some View {
+        let isCorrect = i == current.correctIndex
+        let isChosen = selected == i
+        let showRight = locked && isCorrect
+        let showWrong = locked && isChosen && !isCorrect
+
+        let background: Color = showRight ? .green.opacity(0.16)
+            : showWrong ? .red.opacity(0.14)
+            : isChosen ? Brand.coral.opacity(0.14)
+            : .white
+        let border: Color = showRight ? .green : showWrong ? .red : .clear
+
+        return Button {
+            choose(i)
+        } label: {
+            HStack(spacing: 14) {
+                Text(letters[i])
+                    .font(.system(size: 16, weight: .bold, design: .serif))
+                    .frame(width: 30, height: 30)
+                    .background(isChosen ? Brand.coral : Brand.coral.opacity(0.12), in: Circle())
+                    .foregroundStyle(isChosen ? .white : Brand.ink)
+                Text(option)
+                    .font(.system(size: 17, design: .serif))
+                    .foregroundStyle(.black)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                if showRight {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                } else if showWrong {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(background, in: RoundedRectangle(cornerRadius: 14))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14).stroke(border, lineWidth: 2)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(locked)
+    }
+
+    private func choose(_ i: Int) {
+        guard !locked else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selected = i
+            locked = true
+            awardedFlash = (i == current.correctIndex)
+            if awardedFlash { score += 1 }
+        }
+    }
+
+    private func next() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if index + 1 < total {
+                index += 1
+                selected = nil
+                locked = false
+                awardedFlash = false
+            } else {
+                finished = true
+            }
+        }
+    }
+
+    // MARK: Results screen
+
+    private var percentage: Int {
+        total == 0 ? 0 : Int((Double(score) / Double(total) * 100).rounded())
+    }
+
+    private var grade: String {
+        switch percentage {
+        case 90...: return "A*"
+        case 80..<90: return "A"
+        case 70..<80: return "B"
+        case 60..<70: return "C"
+        case 50..<60: return "D"
+        case 40..<50: return "E"
+        default: return "U"
+        }
+    }
+
+    private var gradeColor: Color {
+        switch percentage {
+        case 70...: return .green
+        case 50..<70: return Brand.peach
+        default: return Brand.coral
+        }
+    }
+
+    private var resultsView: some View {
+        VStack(spacing: 24) {
+            Text(paper.subject)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .tracking(1.2)
+                .foregroundStyle(Brand.ink.opacity(0.5))
+
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(colors: [gradeColor, gradeColor.opacity(0.65)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 150, height: 150)
+                    .shadow(color: gradeColor.opacity(0.4), radius: 16, y: 8)
+                VStack(spacing: 0) {
+                    Text("GRADE")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .tracking(2)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text(grade)
+                        .font(.system(size: 58, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+            }
+
+            VStack(spacing: 6) {
+                Text("\(score) / \(total) correct")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundStyle(Brand.ink)
+                Text("\(percentage)%")
+                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                    .foregroundStyle(Brand.ink.opacity(0.6))
+            }
+
+            Text(remaining <= 0 ? "Time's up — here's how you did." : resultMessage)
+                .font(.system(size: 16, design: .rounded))
+                .foregroundStyle(Brand.ink.opacity(0.7))
+                .multilineTextAlignment(.center)
+
+            Button {
+                dismiss()
+            } label: {
+                Text("Done")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 15)
+                    .background(Brand.coral, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: 460)
+        .padding(36)
+        .background(.white, in: RoundedRectangle(cornerRadius: 28))
+        .shadow(color: .black.opacity(0.08), radius: 20, y: 8)
+        .padding(28)
+    }
+
+    private var resultMessage: String {
+        switch percentage {
+        case 80...: return "Excellent work — you've really mastered this paper."
+        case 60..<80: return "Good effort. Review the ones you missed and go again."
+        case 40..<60: return "You're getting there. Study mode can help fill the gaps."
+        default: return "Keep practising — try study mode to learn each question."
+        }
     }
 }
