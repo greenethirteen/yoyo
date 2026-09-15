@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct StudyPaperView: View {
     @State private var selectedSubject: String = DemoPaper.papers[0].subject
@@ -425,11 +426,17 @@ private struct LessonSidebar: View {
     let onReset: () -> Void
     let onClose: () -> Void
 
+    /// Remembered across questions and launches.
+    @AppStorage("lessonLevel") private var levelRaw: Int = LessonLevel.standard.rawValue
+    @State private var speech = SpeechController()
+    @State private var isSpeaking = false
+
     private var style: TopicStyle { TopicStyle.forTopic(question.topic) }
+    private var level: LessonLevel { LessonLevel(rawValue: levelRaw) ?? .standard }
 
     // The saved notes baked into each question.
     private var lessonTitle: String { question.lessonTitle }
-    private var lessonBody: String { question.lessonBody }
+    private var lessonBody: String { question.body(for: level) }
     private var lessonTip: String { question.tip }
     private var selectedAnswerIsCorrect: Bool {
         isChecked && selectedAnswer == question.correctIndex
@@ -441,6 +448,7 @@ private struct LessonSidebar: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    levelPicker
                     lessonCard
                     tipNote
                     answerPicker
@@ -465,6 +473,37 @@ private struct LessonSidebar: View {
             )
         )
         .overlay(alignment: .leading) { Divider() }
+        .onAppear { speech.onChange = { speaking in isSpeaking = speaking } }
+        .onChange(of: question) { _, _ in stopSpeaking() }
+        .onChange(of: levelRaw) { _, _ in stopSpeaking() }
+        .onDisappear { stopSpeaking() }
+    }
+
+    /// Segmented control that chooses how much detail the explanation shows.
+    private var levelPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("EXPLAIN IT")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .tracking(1.2)
+                .foregroundStyle(Brand.ink.opacity(0.45))
+            Picker("Explanation level", selection: $levelRaw) {
+                ForEach(LessonLevel.allCases) { lvl in
+                    Text(lvl.label).tag(lvl.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    private func toggleSpeech() {
+        let text = "\(question.lessonTitle). \(question.body(for: level))"
+        speech.toggle(text)
+        isSpeaking = speech.isSpeaking
+    }
+
+    private func stopSpeaking() {
+        speech.stop()
+        isSpeaking = false
     }
 
     private var header: some View {
@@ -522,6 +561,17 @@ private struct LessonSidebar: View {
                 Image(systemName: "sparkles")
                     .font(.footnote)
                     .foregroundStyle(style.color)
+                Spacer(minLength: 8)
+                Button(action: toggleSpeech) {
+                    Image(systemName: isSpeaking ? "stop.circle.fill" : "speaker.wave.2.fill")
+                        .font(.title3)
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(style.color, in: Circle())
+                        .shadow(color: style.color.opacity(0.35), radius: 5, y: 2)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isSpeaking ? "Stop reading" : "Read aloud")
             }
             Text(lessonTitle)
                 .font(.hand(27))
@@ -660,6 +710,56 @@ private struct ResultCard: View {
         .padding(15)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background((correct ? Color.green : Color.red).opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+// MARK: - Read-aloud
+
+/// Wraps `AVSpeechSynthesizer` so an explanation can be read aloud using the
+/// device's built-in offline voice. No network or AI needed.
+final class SpeechController: NSObject, AVSpeechSynthesizerDelegate {
+    private let synthesizer = AVSpeechSynthesizer()
+    /// Called when speaking starts or stops, so a view can update its icon.
+    var onChange: ((Bool) -> Void)?
+
+    override init() {
+        super.init()
+        synthesizer.delegate = self
+    }
+
+    var isSpeaking: Bool { synthesizer.isSpeaking }
+
+    /// Starts reading `text`, or stops if already speaking.
+    func toggle(_ text: String) {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+            onChange?(false)
+            return
+        }
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+        try? AVAudioSession.sharedInstance().setActive(true)
+
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-GB")
+        utterance.rate = 0.44          // a little slower, easier to follow
+        utterance.pitchMultiplier = 1.05
+        synthesizer.speak(utterance)
+        onChange?(true)
+    }
+
+    func stop() {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+        }
+        onChange?(false)
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        onChange?(false)
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        onChange?(false)
     }
 }
 
